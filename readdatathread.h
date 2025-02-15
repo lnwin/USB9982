@@ -33,11 +33,14 @@ public:
     LONG    DEV_VERSION = 0; //A版本0   B版本1
 #define  ADD_BW 3 //累加后数据是3个字节
 #define  DISPLAY_CNT 1024
+
     //============================================
+    void saveMyData(QString filePath,PUCHAR pBuf, int fileSiz,QString type);
+    void saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz,QString type);
+    void saveMyContinueData(QString filePath,PUCHAR pBuf, int fileSiz,QString type);
 
 signals:
     void sendMSG2UI_Read(QString);
-    void sendData2Save(QString filePath,PUCHAR pBuf, int fileSiz);
 
 public slots:
     void getFileDirPath(const QString&);

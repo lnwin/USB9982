@@ -39,6 +39,10 @@ private slots:
 
     void getMSG(const QString&);
 
+    void on_bEnADD_stateChanged(int arg1);
+
+    void on_m_bEn2G_stateChanged(int arg1);
+
 private:
     Ui::MainWindow *ui;
     USB9982_PARA_INIT mmp;
@@ -51,7 +55,7 @@ signals:
     void startInit();
     void startSingleAD(const USB9982_PARA_INIT&,int singleLength);
     void starContinueAD(const USB9982_PARA_INIT&);
-    void stopAD(const USB9982_PARA_INIT&);
+    void stopAD();
     void sendFIlePath(const QString&);
 
 };

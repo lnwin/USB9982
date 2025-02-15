@@ -13,6 +13,7 @@ typedef struct _USB9982_PARA_INIT
 	LONG    TriggerLevel;    //模拟触发电平
 	LONG    lADGain;         //AD增益  
 	LONG    bEnADD;          //累加功能选择
+    LONG    m_bEn2G;         //2G功能
 	LONG    lADDthd;         //累加门限，仅bEnAdd使能时有效，范围0x00~0xff
 	LONG    lADDcnt;         //累加次数，仅bEnAdd使能时有效，范围1~65536
     LONG    m_bSelClk;       //时钟

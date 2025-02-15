@@ -21,9 +21,12 @@ MainWindow::MainWindow(QWidget *parent)
     connect(this,&MainWindow::sendFIlePath,myreadDataThread,&readDataThread::getFileDirPath);
     connect(this,&MainWindow::startSingleAD,myreadDataThread,&readDataThread::readSingleData);
     connect(this,&MainWindow::starContinueAD,myreadDataThread,&readDataThread::readContinueData);
+    connect(this,&MainWindow::stopAD,myreadDataThread,&readDataThread::stopRead);
 //==================================================================================================
     connect(myreadDataThread,&readDataThread::sendMSG2UI_Read,this,&MainWindow::getMSG);
-    connect(myreadDataThread,&readDataThread::sendData2Save,mysaveData,&saveData::saveMyData);
+    //connect(mysaveData,&saveData::sendMSG2UI,this,&MainWindow::getMSG);
+    //connect(myreadDataThread,&readDataThread::sendData2Save,mysaveData,&saveData::saveMyData);
+   // connect(myreadDataThread,&readDataThread::sendLJData2Save,mysaveData,&saveData::saveMyLJData);
 
 
     emit startInit();
@@ -62,13 +65,6 @@ void MainWindow::readMyPara()
     mmp.ClkDeci=(LONG)ui->m_nClkdeci->text().toInt();
     mmp.m_bSelClk=(LONG)ui->m_bSelClk->currentText().toInt();
 
-
-
-
-
-
-
-
 };
 
 
@@ -77,12 +73,18 @@ void MainWindow::on_startAD_clicked()
 
     readMyPara();
 
+    myreadDataThread->bADRun=true;
+
+    emit starContinueAD(mmp);
+
 }
 
 
 void MainWindow::on_stopAD_clicked()
 {
+   myreadDataThread->bADRun=false;
 
+   emit  stopAD();
 }
 
 
@@ -106,5 +108,33 @@ void MainWindow::on_selectPath_clicked()
 void MainWindow::on_m_bInt_stateChanged(int arg1)
 {
     ui->textEdit->append(QString::number((long)ui->m_bInt->isChecked()));
+}
+
+
+void MainWindow::on_bEnADD_stateChanged(int arg1)
+{
+    if(arg1==2)
+    {
+        ui->singleAD->setEnabled(false);
+
+    }
+    else
+    {
+         ui->singleAD->setEnabled(true);
+    }
+}
+
+
+void MainWindow::on_m_bEn2G_stateChanged(int arg1)
+{
+    if(arg1==2)
+    {
+        mmp.m_bEn2G=true;;
+
+    }
+    else
+    {
+        mmp.m_bEn2G=false;
+    }
 }
 

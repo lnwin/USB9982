@@ -13,11 +13,12 @@ class saveData : public QThread
 public:
     explicit saveData(QObject *parent = nullptr);
 
-    void saveMyData(QString filePath,PUCHAR pBuf, int fileSiz);
+  //  void saveMyData(QString filePath,PUCHAR pBuf, int fileSiz);
+   // void saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz);
 
 signals:
 
-    void sendMSG2UI();
+    void sendMSG2UI(QString);
 
 };
 
