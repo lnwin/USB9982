@@ -6,7 +6,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
+    qRegisterMetaType<USB9982_PARA_INIT>("USB9982_PARA_INIT");
+    qRegisterMetaType<PUCHAR>("PUCHAR");
     myreadDataThread =new readDataThread();
     myreadThread = new QThread();
     myreadDataThread->moveToThread(myreadThread);
@@ -22,6 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(this,&MainWindow::starContinueAD,myreadDataThread,&readDataThread::readContinueData);
 //==================================================================================================
     connect(myreadDataThread,&readDataThread::sendMSG2UI_Read,this,&MainWindow::getMSG);
+    connect(myreadDataThread,&readDataThread::sendData2Save,mysaveData,&saveData::saveMyData);
 
 
     emit startInit();
@@ -57,6 +59,15 @@ void MainWindow::readMyPara()
     {mmp.bEnADD  =(LONG) ui->bEnADD->isChecked() | 0x20;}//累加功能使能,内部计数器测试
     mmp.lADDcnt = (LONG)ui->lADDcnt->text().toFloat();//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
     mmp.lADDthd = (LONG)ui->lADDthd->text().toFloat();//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
+    mmp.ClkDeci=(LONG)ui->m_nClkdeci->text().toInt();
+    mmp.m_bSelClk=(LONG)ui->m_bSelClk->currentText().toInt();
+
+
+
+
+
+
+
 
 };
 

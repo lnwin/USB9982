@@ -11,6 +11,7 @@
 #include <readdatathread.h>
 #include <savedata.h>
 #include <showdata.h>
+#include <QMetaType>
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;

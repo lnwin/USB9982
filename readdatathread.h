@@ -5,12 +5,8 @@
 #include <savedata.h>
 #include <QThread>
 #include <USB9982.h>
-LONG   MAX_FIFO   = 1024; //1024M(1GB)
-ULONG  DIS_MAXVAL = 0xff;//显示最大值，AD数据最大255 累加数据最大255乘以累加次数
-#define CH_CNT 2		//最大通道数
-LONG    DEV_VERSION = 0; //A版本0   B版本1
-#define  ADD_BW 3 //累加后数据是3个字节
-#define  DISPLAY_CNT 1024
+#include <QDebug>
+
 class readDataThread : public QThread
 {
     Q_OBJECT
@@ -31,6 +27,12 @@ public:
     UCHAR  devNum ;  //当前打开设备号
     USB9982_PARA_INIT para_init;
     QString fileDir;
+    LONG   MAX_FIFO   = 1024; //1024M(1GB)
+    ULONG  DIS_MAXVAL = 0xff;//显示最大值，AD数据最大255 累加数据最大255乘以累加次数
+#define CH_CNT 2		//最大通道数
+    LONG    DEV_VERSION = 0; //A版本0   B版本1
+#define  ADD_BW 3 //累加后数据是3个字节
+#define  DISPLAY_CNT 1024
     //============================================
 
 signals:

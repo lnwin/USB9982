@@ -78,6 +78,7 @@ void readDataThread::systemInit()
 void readDataThread::readSingleData(const USB9982_PARA_INIT&MP,int singLength)
 {
     para_init=MP;
+    int myLength=singLength;
     #define  SOFT_TRIG_CNT 1 //发出软件触发次数
     ULONGLONG sicnt=0;
     if((para_init.TriggerSource == TRIG_SRC_SOFT) &&
@@ -89,10 +90,13 @@ void readDataThread::readSingleData(const USB9982_PARA_INIT&MP,int singLength)
     }
     else
     {
-        sicnt = 1024*1024*singLength;//每次读取1M个采样点
+        sicnt = 1024*1024*myLength;//每次读取1M个采样点
         bSoftTrig = FALSE;
         emit sendMSG2UI_Read("非软触发+连续采集");
     }
+
+    qDebug()<<"myLength=="<<myLength;
+
     LONG len1=0,trigcnt1=0;
     //如果累加功能使能，重新计算读取长度
     if(para_init.TriggerMode!= TRIG_MODE_CONTINUE &&
@@ -100,7 +104,7 @@ void readDataThread::readSingleData(const USB9982_PARA_INIT&MP,int singLength)
     {
         len1 = para_init.TriggerLength*TRIG_UNIT*ADD_BW*para_init.lChCnt ; //一次的累加结果，是一次触发长度乘上累加后的位宽
         QString MSG="触发长度:";MSG.append(QString::number(para_init.TriggerLength*TRIG_UNIT*ADD_BW));
-        trigcnt1 =singLength;
+        trigcnt1 =myLength;
         sicnt = len1*trigcnt1;
     }
 
@@ -187,7 +191,7 @@ void readDataThread::readSingleData(const USB9982_PARA_INIT&MP,int singLength)
 
 
             emit sendData2Save(fileDir,inBuffer,read_len);
-
+            qDebug()<<"get here!";
             //如果 触发模式+累加使能
             if((para_init.TriggerMode != TRIG_MODE_CONTINUE) &&
                 ((para_init.bEnADD&0x01)==TRUE))

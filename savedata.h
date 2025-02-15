@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QDataStream>
 #include <QThread>
+#include <QDebug>
 class saveData : public QThread
 {
     Q_OBJECT

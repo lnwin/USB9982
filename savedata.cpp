@@ -1,13 +1,16 @@
 #include "savedata.h"
 
 saveData::saveData(QObject *parent)
-    : QObject{parent}
-{}
+
+{
+
+}
 
 
 void saveData::saveMyData(QString filePath,PUCHAR pBuf, int fileSiz)
 {
 
+    PUCHAR myBuf=pBuf;
     QDateTime currentTime=QDateTime::currentDateTime();
     QString MT="/"+currentTime.toString("yyyy_hh_mm_ss")+".bin";
     filePath.append(MT);
@@ -25,7 +28,7 @@ void saveData::saveMyData(QString filePath,PUCHAR pBuf, int fileSiz)
 
     // 写入数据到文件
     for (int i = 0; i < fileSiz; ++i) {
-        out << pBuf[i];
+        out << myBuf[i];
     }
 
     // 检查写入是否成功
@@ -35,6 +38,6 @@ void saveData::saveMyData(QString filePath,PUCHAR pBuf, int fileSiz)
 
     // 关闭文件
     file.close();
-
+    qDebug()<<"file.close();";
 
 };
