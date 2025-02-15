@@ -3,12 +3,14 @@
 // USB9982.h
 #include <windows.h>  // 确保包含LONG的定义
 #include <QMainWindow>
-#include <USB9982.h>
 #include <QFileDialog>
 #include <QFile>
 #include <QDataStream>
 #include <QTextStream>
-#include <stdio.h>
+#include <QDateTime>
+#include <readdatathread.h>
+#include <savedata.h>
+#include <showdata.h>
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -34,23 +36,22 @@ private slots:
 
     void on_m_bInt_stateChanged(int arg1);
 
+    void getMSG(const QString&);
+
 private:
     Ui::MainWindow *ui;
-    //============================================
-    bool isOpened=false;
-    BOOL  bSoftTrig; //软件触发
-    BOOL    bADRun ;//正在采集标志
-    HANDLE  hEvent ;//事件
-    LONG    samcnt ;//采集样点数
-    int		m_nTrigLen;
-    LONG m_lChcnt;  //通道数
-    #define  MAX_SEGMENT 3//缓冲区数目
-    ULONG* dataBuff[MAX_SEGMENT];//采集信息缓冲，采用Block环形缓冲方式
-    //============================================
-    void findUSBCard();
-    void opendCloseCard(const bool & cardStatus);
-
+    USB9982_PARA_INIT mmp;
+    readDataThread *myreadDataThread;
+    QThread *myreadThread;
+    saveData*mysaveData;
+    QThread *mysaveThread;
     void readMyPara();
-    void saveMydata(QString filePath,PUCHAR pBuf, int fileSiz);
+signals:
+    void startInit();
+    void startSingleAD(const USB9982_PARA_INIT&,int singleLength);
+    void starContinueAD(const USB9982_PARA_INIT&);
+    void stopAD(const USB9982_PARA_INIT&);
+    void sendFIlePath(const QString&);
+
 };
 #endif // MAINWINDOW_H

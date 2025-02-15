@@ -2,10 +2,10 @@
 #define SHOWDATA_H
 
 #include <QObject>
-
-class showData
+#include <QThread>
+class showData: public QThread
 {
-    //Q_OBJECT
+    Q_OBJECT
 public:
     showData();
 };

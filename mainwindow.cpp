@@ -1,20 +1,30 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-LONG   MAX_FIFO   = 1024; //1024M(1GB)
-ULONG  DIS_MAXVAL = 0xff;//显示最大值，AD数据最大255 累加数据最大255乘以累加次数
-#define CH_CNT 2		//最大通道数
-LONG    DEV_VERSION = 0; //A版本0   B版本1
-#define  ADD_BW 3 //累加后数据是3个字节
-#define  DISPLAY_CNT 1024
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
-    findUSBCard();
+    myreadDataThread =new readDataThread();
+    myreadThread = new QThread();
+    myreadDataThread->moveToThread(myreadThread);
+    myreadThread->start();
+    mysaveData=new saveData();
+    mysaveThread=new  QThread ();
+    mysaveData->moveToThread(mysaveThread);
+    mysaveThread->start();
+
+    connect(this,&MainWindow::startInit,myreadDataThread,&readDataThread::systemInit);
+    connect(this,&MainWindow::sendFIlePath,myreadDataThread,&readDataThread::getFileDirPath);
+    connect(this,&MainWindow::startSingleAD,myreadDataThread,&readDataThread::readSingleData);
+    connect(this,&MainWindow::starContinueAD,myreadDataThread,&readDataThread::readContinueData);
+//==================================================================================================
+    connect(myreadDataThread,&readDataThread::sendMSG2UI_Read,this,&MainWindow::getMSG);
 
 
+    emit startInit();
 
 }
 
@@ -22,401 +32,65 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-BOOL readUSB(HANDLE hDevice, PUCHAR pBuf, int bufSiz)//存盘
+
+void MainWindow::getMSG(const QString&mmg)
 {
-    //DWORD tick1,tick2;
-    //tick1 = ::GetTickCount();
-    //一次读完samcnt长度数据，例如一个触发长度，如果samcnt大于READ_MAX_LEN，则分为多次读取
-    ULONG DataOver =0; //缓存区溢出指示
-    ULONG rlen=0;//每次读取长度
-    ULONG alen=0;//已经读取长度
-    int rcnt = 0;//总共需要读取的次数
-    if((bufSiz%READ_MAX_LEN) == 0)//如果读取的长度，刚好是最大允许读取长度的整数倍
-        rcnt = (bufSiz/READ_MAX_LEN);
-    else
-        rcnt = (bufSiz/READ_MAX_LEN)+1;
-    //分多次读取，每次读最大长度是READ_MAX_LEN
-    for(int i=0;i<rcnt;i++)
-    {
-        if(i==(rcnt-1))//如果是最后一次
-        {
-            if ((bufSiz%READ_MAX_LEN) ==0)//如果刚好是整数倍
-                rlen = READ_MAX_LEN;
-            else
-                rlen = bufSiz%READ_MAX_LEN;
-        }
-        else
-        {
-            rlen = READ_MAX_LEN;
-        }
-        //等待缓存数据量达到要求
-        //读数
-        if (!USB9982_ReadAD(hDevice,pBuf+alen,rlen))
-        {
-            //m_strOutput+="读取数据失败\r\n";
-            //UpdateData(FALSE);
-            break;
-            return FALSE;
-        }
-        //判断数据是否溢出
-        alen += rlen;
-    }
-
-    return TRUE;
-}
-HANDLE hDevice = INVALID_HANDLE_VALUE;
-UCHAR  devNum ;  //当前打开设备号
-USB9982_PARA_INIT para_init;
-void MainWindow::findUSBCard()
-{
-
-
-    devNum = 0;
-    for( int i=0;i<32;i++)
-    {
-        hDevice = USB9982_Link(i);
-        if (hDevice != INVALID_HANDLE_VALUE) {
-            devNum = i;
-            ui->textEdit->append("Find Device!");
-            break;
-        }
-    }
-
-
-    //判断设备是否为高速USB设备
-    UCHAR speed;
-    USB9982_IsHighDevice(hDevice, &speed);
-    if (speed==0)
-    {
-        ui->textEdit->append("设备枚举为非高速USB设备");
-    }   
-    //读取设备信息
-    LONG devADbit = 0;
-    USB9982_GetDevInfo(hDevice,&MAX_FIFO,&devADbit,&DEV_VERSION);
-    QString str = QString("USB9982(%1bit AD)采集卡打开成功, FIFO %2M采样点，硬件版本号Ver: %3")
-                      .arg(devADbit).arg(MAX_FIFO).arg(DEV_VERSION);
-
-    ui->textEdit->append(str);
-
-    readMyPara();
-
-
+    ui->textEdit->append(mmg);
 };
+
 void MainWindow::readMyPara()
 {
-
-    para_init.TriggerMode = (LONG)ui->TriggerMode->currentIndex();		//触发模式
-    para_init.TriggerSource = (LONG) ui->TriggerSource->currentIndex();	//触发源
-    para_init.lChCnt   = (LONG)ui->lChCnt->currentIndex()+1;	     		//通道数
+    mmp.TriggerMode = (LONG)ui->TriggerMode->currentIndex();		//触发模式
+    mmp.TriggerSource = (LONG) ui->TriggerSource->currentIndex();	//触发源
+    mmp.lChCnt   = (LONG)ui->lChCnt->currentIndex()+1;	     		//通道数
     if(ui->m_bEn2G->isChecked())
-    {para_init.lChCnt = (LONG)para_init.lChCnt|EN_AD2G; }//2G模式使能
-    para_init.TriggerLength = (LONG)ui->TriggerLength->text().toInt();//触发长度
-    para_init.TriggerDelay  = (LONG)ui->TriggerDelay->text().toInt(); //触发延时，仅延时触发有效，以FREQsamp/8为单位
-    para_init.TriggerLevel  = (LONG)ui->TriggerLevel->text().toInt(); //USB9982B和USB9982通过函数GetDevInfo 版本号参数来区分，USB9982B版本号1 USB9982版本号0
+    {mmp.lChCnt = (LONG)mmp.lChCnt|EN_AD2G; }//2G模式使能
+    mmp.TriggerLength = (LONG)ui->TriggerLength->text().toInt();//触发长度
+    mmp.TriggerDelay  = (LONG)ui->TriggerDelay->text().toInt(); //触发延时，仅延时触发有效，以FREQsamp/8为单位
+    mmp.TriggerLevel  = (LONG)ui->TriggerLevel->text().toInt(); //USB9982B和USB9982通过函数GetDevInfo 版本号参数来区分，USB9982B版本号1 USB9982版本号0
         //(LONG)(m_nfLevel*255.0/1.0)+128 ;//CH1 CH2触发,输入范围-0.5v~+0.5v
         //(LONG)(m_nfLevel*4095.0/10.0)+2048 ;//外触发，USB9982B触发电平范围 -5v~+5v
         //(LONG)(m_nfLevel*4095.0/5.0);//外触发，USB9982触发电平范围 0~5v
-    para_init.lADGain = (LONG)ui->lADGain->text().toFloat();//放大倍数和dB换算 Amp=10**(dB/20)，仅USB9982A支持，USB9982B/USB9982C不支持
-    para_init.bEnADD  = (LONG)ui->bEnADD->isChecked(); //累加功能使能
+    mmp.lADGain = (LONG)ui->lADGain->text().toFloat();//放大倍数和dB换算 Amp=10**(dB/20)，仅USB9982A支持，USB9982B/USB9982C不支持
+    mmp.bEnADD  = (LONG)ui->bEnADD->isChecked(); //累加功能使能
     if(ui->m_bInt->isChecked())
-    {para_init.bEnADD  =(LONG) ui->bEnADD->isChecked() | 0x20;}//累加功能使能,内部计数器测试
-    para_init.lADDcnt = (LONG)ui->lADDcnt->text().toFloat();//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
-    para_init.lADDthd = (LONG)ui->lADDthd->text().toFloat();//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
-
-    // ui->textEdit->append("触发模式: " + QString::number(para_init.TriggerMode));
-    // ui->textEdit->append("触发源：" + QString::number(para_init.TriggerSource));
-    // ui->textEdit->append("通道数：" + QString::number(para_init.lChCnt));
-    // ui->textEdit->append("触发长度: " + QString::number(para_init.TriggerLength));
-    // ui->textEdit->append("触发延时: " + QString::number(para_init.TriggerDelay));
-    // ui->textEdit->append("触发电平: " + QString::number(para_init.TriggerLevel));
-    // ui->textEdit->append("AD增益: " + QString::number(para_init.lADGain));
-    // ui->textEdit->append("累加功能使能: " + QString::number(para_init.bEnADD));
-    // ui->textEdit->append("累加次数: " + QString::number(para_init.lADDcnt));
-    // ui->textEdit->append("累加门限: " + QString::number(para_init.lADDthd));
-    // ui->textEdit->append("时钟选择:" + QString::number(ui->m_bSelClk->currentIndex()));
-    // ui->textEdit->append("分频因子:" + ui->m_nClkdeci->text());
-
-
-
-
-
-
-
+    {mmp.bEnADD  =(LONG) ui->bEnADD->isChecked() | 0x20;}//累加功能使能,内部计数器测试
+    mmp.lADDcnt = (LONG)ui->lADDcnt->text().toFloat();//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
+    mmp.lADDthd = (LONG)ui->lADDthd->text().toFloat();//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
 
 };
-void MainWindow::opendCloseCard(const bool &ST)
-{
 
-};
 
 void MainWindow::on_startAD_clicked()
 {
 
+    readMyPara();
 
 }
 
 
 void MainWindow::on_stopAD_clicked()
 {
-    if(!USB9982_StopAD(hDevice,devNum))
-    {
-        ui->textEdit->append("结束AD失败");
-    }
+
 }
 
-#define  SOFT_TRIG_CNT 1 //发出软件触发次数
+
 
 void MainWindow::on_singleAD_clicked()
 {
-
-#define  SOFT_TRIG_CNT 1 //发出软件触发次数
-    ULONGLONG sicnt=0;
-    if((para_init.TriggerSource == TRIG_SRC_SOFT) &&
-        (para_init.TriggerMode != TRIG_MODE_CONTINUE))
-    {
-        bSoftTrig = TRUE;
-        sicnt = para_init.TriggerLength*TRIG_UNIT* para_init.lChCnt ;
-        ui->textEdit->append("软触发+单次采集");
-    }
-    else
-    {
-        sicnt = 1024*1024*ui->m_lsicnt->text().toInt();//每次读取1M个采样点
-        bSoftTrig = FALSE;
-        ui->textEdit->append("非软触发+连续采集");
-    }
-    LONG len1=0,trigcnt1=0;
-    //如果累加功能使能，重新计算读取长度
-    if(para_init.TriggerMode!= TRIG_MODE_CONTINUE &&
-        para_init.bEnADD == TRUE )
-    {
-        len1 = para_init.TriggerLength*TRIG_UNIT*ADD_BW*m_lChcnt; //一次的累加结果，是一次触发长度乘上累加后的位宽
-        QString MSG="触发长度:";MSG.append(QString::number(ui->TriggerLength->text().toInt()*TRIG_UNIT*ADD_BW));
-        trigcnt1 =ui->m_lsicnt->text().toInt();
-        sicnt = len1*trigcnt1;
-    }
-
-    if(!USB9982_initADCLK(hDevice,(LONG)ui->m_bSelClk->currentIndex(),(LONG)ui->m_nClkdeci->text().toInt()))
-    {
-        ui->textEdit->append("初始化采样钟失败!");
-    }
-    else
-    {
-        ui->textEdit->append("初始化采样钟成功!");
-    }
-
-    if (!USB9982_InitAD(hDevice, &para_init))
-    {
-        DWORD err = GetLastError(); // 获取 Windows 错误码
-        ui->textEdit->append("初始化AD失败，错误码: " + QString::number(err));
-        return;
-    }
-    else
-    {
-        ui->textEdit->append("初始化AD成功!");
-    }
-    //等待初始化AD完成，否则无法接收软件触发
-    Sleep(100);
-
-
-    //软件触发
-    if (para_init.TriggerSource == TRIG_SRC_SOFT)
-    {
-        Sleep(200);//等待设备初始化完成,才能接收软件触发信号
-        for(int i=0;i<SOFT_TRIG_CNT;i++)
-        {
-            if(!USB9982_ExeSoftTrig(hDevice))
-            { ui->textEdit->append("软件触发失败\r\n");return ;
-            }
-        }
-    }
-
-    //考虑到计算机内存，分多次读取和保存数据
-    #define  MAX_PC_MEM 0x20000000 //每次最大内存分配512采样点
-    int read_cnt = 0;
-    ULONG  read_len = 0;
-    if((sicnt%MAX_PC_MEM) == 0)//如果读取的长度，刚好是最大允许读取长度的整数倍
-        read_cnt = (LONG)(sicnt/MAX_PC_MEM);
-    else
-        read_cnt = (LONG)(sicnt/MAX_PC_MEM)+1;
-    for(int i=0;i<read_cnt;i++)
-    {
-        if(i==(read_cnt-1))//如果是最后一次
-        {
-            if ((sicnt%MAX_PC_MEM) ==0)//如果刚好是整数倍
-                read_len = MAX_PC_MEM;
-            else read_len = (LONG)(sicnt%MAX_PC_MEM);
-        }
-        else {read_len = MAX_PC_MEM;}
-
-        //读取数据
-        //如果触发模式非连续采集模式，等待触发事件发生
-        LONG bBufOver = 0;
-        if(para_init.TriggerMode!=TRIG_MODE_CONTINUE)//触发采集，例如外触发方式，等待FIFO非空再读取数据，避免ReadAD函数死等
-        {
-            while((bBufOver&0x02)==0)//如果FIFO空，则等待FIFO为非空，如果是实时数据流函数，该等待函数可以去掉，直接执行ReadAD函数。
-            {
-                //读取FIFO指示，bBufStatus bit0--FIFO满指示，1表示满，0表示非满；bit1--FIFO非空指示，1表示非空，0表示FIFO空。
-                USB9982_GetBufOver(hDevice,&bBufOver);
-                Sleep(10);//预留时间给其它线程
-            }
-        }
-
-        //分配内存
-        PUCHAR inBuffer = NULL;
-        inBuffer = new UCHAR[read_len];
-        //读取数据
-        if(!readUSB(hDevice,inBuffer,read_len))// 读数
-        {
-            delete[] inBuffer;
-            ui->textEdit->append("ReadAD失败");
-            return;
-        }
-        //如果是单通道
-        if(para_init.lChCnt == 1)
-        {
-
-            //saveDisk("dsd",inBuffer,read_len); //======================保存数据
-            saveMydata("C:/Users/40582/Desktop/dataTest/02.bin",inBuffer,read_len);
-            ui->textEdit->append("read_len==");
-            ui->textEdit->append(QString::number(read_len));
-            //如果 触发模式+累加使能
-            if((para_init.TriggerMode != TRIG_MODE_CONTINUE) &&
-                ((para_init.bEnADD&0x01)==TRUE))
-            {
-                //检测累加数据
-                ULONG acnt = read_len/ADD_BW;
-                PFLOAT dbuf = new FLOAT[acnt]; //分析数据
-                PULONG abuf = new ULONG[acnt];
-                for(ULONG k=0;k<acnt;k++)//重新组合累加数据
-                {
-                    abuf[k] = (ULONG)inBuffer[ADD_BW*k+0]|((ULONG)inBuffer[ADD_BW*k+1]<<8)|((ULONG)inBuffer[ADD_BW*k+2]<<16);
-                    dbuf[k] = (float)abuf[k]/(float)1000.0; //保存为浮点数据，便于软件分析
-                }
-
-
-                //fwrite(dbuf,sizeof(FLOAT), acnt,fpp);
-            }
-
-
-
-        else//多个通道
-        {
-            PUCHAR buf0 = new UCHAR[read_len/para_init.lChCnt];
-            for(int j=0;j<para_init.lChCnt;j++)
-            {
-                //抽取出各个通道数据
-                int ccnt = read_len/para_init.lChCnt;
-                for(int m=0;m<ccnt;m++)
-                    buf0[m] = inBuffer[para_init.lChCnt*m+j];
-               // saveDisk(fp[j],buf0,ccnt);
-
-            }
-            delete[]buf0;
-
-            if((para_init.bEnADD&0x01)==TRUE)//如果累加功能使能,判断累加数据
-            {
-                int ccnt = read_len/2; // 2表示2CH
-                //检测累加数据
-                ULONG acnt = ccnt/ADD_BW;
-                PULONG abuf0= new ULONG[acnt];
-                PULONG abuf1= new ULONG[acnt];
-                int m=0;
-                for(ULONG k=0;k<acnt;k++)//重新组合累加数据
-                {
-                    abuf0[k] = (ULONG)inBuffer[ADD_BW*m+0]|((ULONG)inBuffer[ADD_BW*m+1]<<8)|((ULONG)inBuffer[ADD_BW*m+2]<<16);
-                    m++;
-                    abuf1[k] = (ULONG)inBuffer[ADD_BW*m+0]|((ULONG)inBuffer[ADD_BW*m+1]<<8)|((ULONG)inBuffer[ADD_BW*m+2]<<16);
-                    m++;
-                }
-
-            }
-        }//多个通道保存方式
-        delete[] inBuffer;
-    }
-
-   }
-    //停止AD
-    if(!USB9982_StopAD(hDevice,devNum))
-    {
-       ui->textEdit->append("结束AD失败");
-        return ;
-    }
-    else
-    {
-       ui->textEdit->append("结束AD成功");
-    }
-    //判断溢出位
-    ui->textEdit->append("单次采集成功!");
+    readMyPara();
+    emit startSingleAD(mmp,ui->m_lsicnt->text().toInt());
 }
 
 
 void MainWindow::on_selectPath_clicked()
 {
 
-   QString fileDir=QFileDialog::getExistingDirectory( this, "Rec path", "/");
+  QString myfileDir=QFileDialog::getExistingDirectory( this, "Rec path", "/");
+  ui->savePath->setText(myfileDir);
+  emit sendFIlePath(myfileDir);
 
 }
-
-void MainWindow::saveMydata(QString filePath,PUCHAR pBuf, int fileSiz)
-{
-
-
-    // // 创建QFile对象并打开文件
-    // QFile file(filePath);
-    // if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    //     ui->textEdit->append("无法打开文件");
-    //     return ;
-    // }
-
-    // // 创建QTextStream对象并关联到文件
-    // QTextStream out(&file);
-    // // 设置编码为UTF - 8
-    // out.setCodec("UTF-8");
-
-    // // 写入数据到文件
-    // for (int i = 0; i < fileSiz; ++i) {
-    //     out << pBuf[i] << "\n"; // 每个数据项占一行
-    // }
-
-    // // 检查写入是否成功
-    // if (out.status()!= QTextStream::Ok)
-    // {
-    //     ui->textEdit->append(".....");
-    // }
-    // else
-    // {
-    //     ui->textEdit->append("写入成功");
-    // }
-
-    // // 关闭文件
-    // file.close();
-    // 创建QFile对象并打开文件
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly)) {
-         ui->textEdit->append("无法打开文件");
-        return ;
-    }
-
-    // 创建QDataStream对象并关联到文件
-    QDataStream out(&file);
-    // 设置数据的字节序和版本
-    out.setByteOrder(QDataStream::LittleEndian);
-    out.setVersion(QDataStream::Qt_5_15);
-
-    // 写入数据到文件
-    for (int i = 0; i < fileSiz; ++i) {
-        out << pBuf[i];
-    }
-
-    // 检查写入是否成功
-    if (out.status() != QDataStream::Ok) {
-        ui->textEdit->append(".....");
-    }
-
-    // 关闭文件
-    file.close();
-
-};
 
 void MainWindow::on_m_bInt_stateChanged(int arg1)
 {

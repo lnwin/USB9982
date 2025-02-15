@@ -15,6 +15,8 @@ typedef struct _USB9982_PARA_INIT
 	LONG    bEnADD;          //累加功能选择
 	LONG    lADDthd;         //累加门限，仅bEnAdd使能时有效，范围0x00~0xff
 	LONG    lADDcnt;         //累加次数，仅bEnAdd使能时有效，范围1~65536
+    LONG    m_bSelClk;       //时钟
+    LONG    m_nClkdeci;      //分频因子
 } USB9982_PARA_INIT,*PUSB9982_PARA_INIT;
 #endif
 
