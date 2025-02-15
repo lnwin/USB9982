@@ -5,6 +5,10 @@
 #include <QMainWindow>
 #include <USB9982.h>
 #include <QFileDialog>
+#include <QFile>
+#include <QDataStream>
+#include <QTextStream>
+#include <stdio.h>
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -45,7 +49,7 @@ private:
     //============================================
     void findUSBCard();
     void opendCloseCard(const bool & cardStatus);
-    USB9982_PARA_INIT para_init;
+
     void readMyPara();
     void saveMydata(QString filePath,PUCHAR pBuf, int fileSiz);
 };

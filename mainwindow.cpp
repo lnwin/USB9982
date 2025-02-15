@@ -66,25 +66,21 @@ BOOL readUSB(HANDLE hDevice, PUCHAR pBuf, int bufSiz)//存盘
 }
 HANDLE hDevice = INVALID_HANDLE_VALUE;
 UCHAR  devNum ;  //当前打开设备号
+USB9982_PARA_INIT para_init;
 void MainWindow::findUSBCard()
 {
 
 
-     hDevice = USB9982_Link(1);
-
-        if (hDevice != INVALID_HANDLE_VALUE)
-       {
-
-            ui->textEdit->append("Find No Device!");
-
-        }
-        else
-        {
+    devNum = 0;
+    for( int i=0;i<32;i++)
+    {
+        hDevice = USB9982_Link(i);
+        if (hDevice != INVALID_HANDLE_VALUE) {
+            devNum = i;
             ui->textEdit->append("Find Device!");
-            devNum = 1;
-
+            break;
         }
-
+    }
 
 
     //判断设备是否为高速USB设备
@@ -93,13 +89,15 @@ void MainWindow::findUSBCard()
     if (speed==0)
     {
         ui->textEdit->append("设备枚举为非高速USB设备");
-    }
+    }   
     //读取设备信息
     LONG devADbit = 0;
     USB9982_GetDevInfo(hDevice,&MAX_FIFO,&devADbit,&DEV_VERSION);
-    QString mmg="USB9982(8bit AD)采集卡打开成功,硬件版本号Ver:";mmg.append(QString::number(DEV_VERSION));
-    mmg.append("MAX_FIFO:").append(QString::number(MAX_FIFO));
-    ui->textEdit->append(mmg);
+    QString str = QString("USB9982(%1bit AD)采集卡打开成功, FIFO %2M采样点，硬件版本号Ver: %3")
+                      .arg(devADbit).arg(MAX_FIFO).arg(DEV_VERSION);
+
+    ui->textEdit->append(str);
+
     readMyPara();
 
 
@@ -107,99 +105,38 @@ void MainWindow::findUSBCard()
 void MainWindow::readMyPara()
 {
 
-    // para_init.TriggerMode = (LONG)ui->TriggerMode->currentIndex();		//触发模式
-    // para_init.TriggerSource = (LONG) ui->TriggerSource->currentIndex();	//触发源
-    // para_init.lChCnt   = (LONG)ui->lChCnt->currentIndex()+1;	     		//通道数
-    // if(ui->m_bEn2G->isChecked())
-    // {para_init.lChCnt = (LONG)para_init.lChCnt|EN_AD2G; }//2G模式使能
-    // para_init.TriggerLength = (LONG)ui->TriggerLength->text().toInt();//触发长度
-    // para_init.TriggerDelay  = (LONG)ui->TriggerDelay->text().toInt(); //触发延时，仅延时触发有效，以FREQsamp/8为单位
-    // para_init.TriggerLevel  = (LONG)ui->TriggerLevel->text().toInt(); //USB9982B和USB9982通过函数GetDevInfo 版本号参数来区分，USB9982B版本号1 USB9982版本号0
-    //     //(LONG)(m_nfLevel*255.0/1.0)+128 ;//CH1 CH2触发,输入范围-0.5v~+0.5v
-    //     //(LONG)(m_nfLevel*4095.0/10.0)+2048 ;//外触发，USB9982B触发电平范围 -5v~+5v
-    //     //(LONG)(m_nfLevel*4095.0/5.0);//外触发，USB9982触发电平范围 0~5v
-    // para_init.lADGain = (LONG)ui->lADGain->text().toFloat();//放大倍数和dB换算 Amp=10**(dB/20)，仅USB9982A支持，USB9982B/USB9982C不支持
-    // para_init.bEnADD  = (LONG)ui->bEnADD->isChecked(); //累加功能使能
-    // if(ui->m_bInt->isChecked())
-    // {para_init.bEnADD  =(LONG) ui->bEnADD->isChecked() | 0x20;}//累加功能使能,内部计数器测试
-    // para_init.lADDcnt = (LONG)ui->lADDcnt->text().toFloat();//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
-    // para_init.lADDthd = (LONG)ui->lADDthd->text().toFloat();//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
-    para_init.TriggerMode = 0;		    //触发模式
-    para_init.TriggerSource = 0;		//触发源
-    para_init.lChCnt   = 1;						//通道数
-    para_init.TriggerLength = 1024;//触发长度
-    para_init.TriggerDelay  = 100; //触发延时，仅延时触发有效，以FREQsamp/8为单位
-    para_init.TriggerLevel  = 2048; //USB9982B和USB9982通过函数GetDevInfo 版本号参数来区分，USB9982B版本号1 USB9982版本号0
+    para_init.TriggerMode = (LONG)ui->TriggerMode->currentIndex();		//触发模式
+    para_init.TriggerSource = (LONG) ui->TriggerSource->currentIndex();	//触发源
+    para_init.lChCnt   = (LONG)ui->lChCnt->currentIndex()+1;	     		//通道数
+    if(ui->m_bEn2G->isChecked())
+    {para_init.lChCnt = (LONG)para_init.lChCnt|EN_AD2G; }//2G模式使能
+    para_init.TriggerLength = (LONG)ui->TriggerLength->text().toInt();//触发长度
+    para_init.TriggerDelay  = (LONG)ui->TriggerDelay->text().toInt(); //触发延时，仅延时触发有效，以FREQsamp/8为单位
+    para_init.TriggerLevel  = (LONG)ui->TriggerLevel->text().toInt(); //USB9982B和USB9982通过函数GetDevInfo 版本号参数来区分，USB9982B版本号1 USB9982版本号0
         //(LONG)(m_nfLevel*255.0/1.0)+128 ;//CH1 CH2触发,输入范围-0.5v~+0.5v
         //(LONG)(m_nfLevel*4095.0/10.0)+2048 ;//外触发，USB9982B触发电平范围 -5v~+5v
         //(LONG)(m_nfLevel*4095.0/5.0);//外触发，USB9982触发电平范围 0~5v
-    para_init.lADGain = 0;//放大倍数和dB换算 Amp=10**(dB/20)，仅USB9982A支持，USB9982B/USB9982C不支持
-    para_init.bEnADD  = 0; //累加功能使能
-    para_init.lADDcnt = 1000;//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
-    para_init.lADDthd = 255;//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
+    para_init.lADGain = (LONG)ui->lADGain->text().toFloat();//放大倍数和dB换算 Amp=10**(dB/20)，仅USB9982A支持，USB9982B/USB9982C不支持
+    para_init.bEnADD  = (LONG)ui->bEnADD->isChecked(); //累加功能使能
+    if(ui->m_bInt->isChecked())
+    {para_init.bEnADD  =(LONG) ui->bEnADD->isChecked() | 0x20;}//累加功能使能,内部计数器测试
+    para_init.lADDcnt = (LONG)ui->lADDcnt->text().toFloat();//累加次数，仅para_init.bEnAdd==TRUE时，该参数有效
+    para_init.lADDthd = (LONG)ui->lADDthd->text().toFloat();//累加门限，仅para_init.bEnAdd==TRUE时，该参数有效
 
-    ui->textEdit->append("触发模式: " + QString::number(para_init.TriggerMode));
-    ui->textEdit->append("触发源:" + QString::number(para_init.TriggerSource));
-    ui->textEdit->append("通道数:" + QString::number(para_init.lChCnt));
-    ui->textEdit->append("触发长度: " + QString::number(para_init.TriggerLength));
-    ui->textEdit->append("触发延时: " + QString::number(para_init.TriggerDelay));
-    ui->textEdit->append("触发电平: " + QString::number(para_init.TriggerLevel));
-    ui->textEdit->append("AD增益: " + QString::number(para_init.lADGain));
-    ui->textEdit->append("累加功能使能: " + QString::number(para_init.bEnADD));
-    ui->textEdit->append("累加次数: " + QString::number(para_init.lADDcnt));
-    ui->textEdit->append("累加门限: " + QString::number(para_init.lADDthd));
+    // ui->textEdit->append("触发模式: " + QString::number(para_init.TriggerMode));
+    // ui->textEdit->append("触发源：" + QString::number(para_init.TriggerSource));
+    // ui->textEdit->append("通道数：" + QString::number(para_init.lChCnt));
+    // ui->textEdit->append("触发长度: " + QString::number(para_init.TriggerLength));
+    // ui->textEdit->append("触发延时: " + QString::number(para_init.TriggerDelay));
+    // ui->textEdit->append("触发电平: " + QString::number(para_init.TriggerLevel));
+    // ui->textEdit->append("AD增益: " + QString::number(para_init.lADGain));
+    // ui->textEdit->append("累加功能使能: " + QString::number(para_init.bEnADD));
+    // ui->textEdit->append("累加次数: " + QString::number(para_init.lADDcnt));
+    // ui->textEdit->append("累加门限: " + QString::number(para_init.lADDthd));
+    // ui->textEdit->append("时钟选择:" + QString::number(ui->m_bSelClk->currentIndex()));
+    // ui->textEdit->append("分频因子:" + ui->m_nClkdeci->text());
 
 
-    #define  SOFT_TRIG_CNT 1 //发出软件触发次数
-
-    if((para_init.TriggerSource == TRIG_SRC_SOFT) &&
-        (para_init.TriggerMode != TRIG_MODE_CONTINUE))
-    {
-        bSoftTrig = TRUE;
-        samcnt = m_nTrigLen*TRIG_UNIT;
-        ui->textEdit->append("软触发+单次采集");
-    }
-    else
-    {
-        samcnt = 1024*1024*para_init.lChCnt;//每次读取1M个采样点
-        bSoftTrig = FALSE;
-         ui->textEdit->append("非软触发+采集");
-    }
-    DIS_MAXVAL = 0xff;//显示最大值
-
-    //如果累加功能使能，重新计算显示最大值和读取长度
-    if(para_init.TriggerMode!= TRIG_MODE_CONTINUE &&
-        para_init.bEnADD == TRUE )
-    {
-        DIS_MAXVAL = 0xff*para_init.lADDcnt;//计算最大值 AD最大值*累加次数
-        samcnt = para_init.TriggerLength*TRIG_UNIT*ADD_BW*m_lChcnt; //一次的累加结果，是一次触发长度乘上累加后的位宽
-        QString MSG="触发长度:";MSG.append(QString::number(ui->TriggerLength->text().toInt()*TRIG_UNIT*ADD_BW));
-        ui->textEdit->append(MSG);
-    }
-
-    ui->textEdit->append("时钟选择:" + QString::number(ui->m_bSelClk->currentIndex()));
-    ui->textEdit->append("分频因子:" + ui->m_nClkdeci->text());
-    //if(!USB9982_initADCLK(hDevice,(LONG)ui->m_bSelClk->currentIndex(),(LONG)ui->m_nClkdeci->text().toInt()))
-    if(!USB9982_initADCLK(hDevice,0,1))
-    {
-        ui->textEdit->append("初始化采样钟失败!");
-    }
-    else
-    {
-         ui->textEdit->append("初始化采样钟成功!");
-    }
-
-    //初始化采集
-    if(!USB9982_InitAD(hDevice,&para_init))
-    {
-        ui->textEdit->append("初始化AD失败!");
-    }
-    else
-    {
-        ui->textEdit->append("初始化AD成功!");
-    }
-    //等待初始化AD完成，否则无法接收软件触发
-    Sleep(100);
 
 
 
@@ -232,6 +169,53 @@ void MainWindow::on_stopAD_clicked()
 void MainWindow::on_singleAD_clicked()
 {
 
+#define  SOFT_TRIG_CNT 1 //发出软件触发次数
+    ULONGLONG sicnt=0;
+    if((para_init.TriggerSource == TRIG_SRC_SOFT) &&
+        (para_init.TriggerMode != TRIG_MODE_CONTINUE))
+    {
+        bSoftTrig = TRUE;
+        sicnt = para_init.TriggerLength*TRIG_UNIT* para_init.lChCnt ;
+        ui->textEdit->append("软触发+单次采集");
+    }
+    else
+    {
+        sicnt = 1024*1024*ui->m_lsicnt->text().toInt();//每次读取1M个采样点
+        bSoftTrig = FALSE;
+        ui->textEdit->append("非软触发+连续采集");
+    }
+    LONG len1=0,trigcnt1=0;
+    //如果累加功能使能，重新计算读取长度
+    if(para_init.TriggerMode!= TRIG_MODE_CONTINUE &&
+        para_init.bEnADD == TRUE )
+    {
+        len1 = para_init.TriggerLength*TRIG_UNIT*ADD_BW*m_lChcnt; //一次的累加结果，是一次触发长度乘上累加后的位宽
+        QString MSG="触发长度:";MSG.append(QString::number(ui->TriggerLength->text().toInt()*TRIG_UNIT*ADD_BW));
+        trigcnt1 =ui->m_lsicnt->text().toInt();
+        sicnt = len1*trigcnt1;
+    }
+
+    if(!USB9982_initADCLK(hDevice,(LONG)ui->m_bSelClk->currentIndex(),(LONG)ui->m_nClkdeci->text().toInt()))
+    {
+        ui->textEdit->append("初始化采样钟失败!");
+    }
+    else
+    {
+        ui->textEdit->append("初始化采样钟成功!");
+    }
+
+    if (!USB9982_InitAD(hDevice, &para_init))
+    {
+        DWORD err = GetLastError(); // 获取 Windows 错误码
+        ui->textEdit->append("初始化AD失败，错误码: " + QString::number(err));
+        return;
+    }
+    else
+    {
+        ui->textEdit->append("初始化AD成功!");
+    }
+    //等待初始化AD完成，否则无法接收软件触发
+    Sleep(100);
 
 
     //软件触发
@@ -245,8 +229,8 @@ void MainWindow::on_singleAD_clicked()
             }
         }
     }
+
     //考虑到计算机内存，分多次读取和保存数据
-    ULONGLONG sicnt=0;
     #define  MAX_PC_MEM 0x20000000 //每次最大内存分配512采样点
     int read_cnt = 0;
     ULONG  read_len = 0;
@@ -254,7 +238,6 @@ void MainWindow::on_singleAD_clicked()
         read_cnt = (LONG)(sicnt/MAX_PC_MEM);
     else
         read_cnt = (LONG)(sicnt/MAX_PC_MEM)+1;
-
     for(int i=0;i<read_cnt;i++)
     {
         if(i==(read_cnt-1))//如果是最后一次
@@ -288,13 +271,14 @@ void MainWindow::on_singleAD_clicked()
             ui->textEdit->append("ReadAD失败");
             return;
         }
-
         //如果是单通道
-        if(m_lChcnt == 1)
+        if(para_init.lChCnt == 1)
         {
 
-           // saveDisk("dsd",inBuffer,read_len); //======================保存数据
-
+            //saveDisk("dsd",inBuffer,read_len); //======================保存数据
+            saveMydata("C:/Users/40582/Desktop/dataTest/02.bin",inBuffer,read_len);
+            ui->textEdit->append("read_len==");
+            ui->textEdit->append(QString::number(read_len));
             //如果 触发模式+累加使能
             if((para_init.TriggerMode != TRIG_MODE_CONTINUE) &&
                 ((para_init.bEnADD&0x01)==TRUE))
@@ -310,20 +294,20 @@ void MainWindow::on_singleAD_clicked()
                 }
 
 
-                //fwrite(dbuf,sizeof(FLOAT), acnt,fpp); 需要保存数据
+                //fwrite(dbuf,sizeof(FLOAT), acnt,fpp);
             }
 
 
 
         else//多个通道
         {
-            PUCHAR buf0 = new UCHAR[read_len/m_lChcnt];
-            for(int j=0;j<m_lChcnt;j++)
+            PUCHAR buf0 = new UCHAR[read_len/para_init.lChCnt];
+            for(int j=0;j<para_init.lChCnt;j++)
             {
                 //抽取出各个通道数据
-                int ccnt = read_len/m_lChcnt;
+                int ccnt = read_len/para_init.lChCnt;
                 for(int m=0;m<ccnt;m++)
-                    buf0[m] = inBuffer[m_lChcnt*m+j];
+                    buf0[m] = inBuffer[para_init.lChCnt*m+j];
                // saveDisk(fp[j],buf0,ccnt);
 
             }
@@ -357,6 +341,10 @@ void MainWindow::on_singleAD_clicked()
        ui->textEdit->append("结束AD失败");
         return ;
     }
+    else
+    {
+       ui->textEdit->append("结束AD成功");
+    }
     //判断溢出位
     ui->textEdit->append("单次采集成功!");
 }
@@ -371,6 +359,62 @@ void MainWindow::on_selectPath_clicked()
 
 void MainWindow::saveMydata(QString filePath,PUCHAR pBuf, int fileSiz)
 {
+
+
+    // // 创建QFile对象并打开文件
+    // QFile file(filePath);
+    // if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    //     ui->textEdit->append("无法打开文件");
+    //     return ;
+    // }
+
+    // // 创建QTextStream对象并关联到文件
+    // QTextStream out(&file);
+    // // 设置编码为UTF - 8
+    // out.setCodec("UTF-8");
+
+    // // 写入数据到文件
+    // for (int i = 0; i < fileSiz; ++i) {
+    //     out << pBuf[i] << "\n"; // 每个数据项占一行
+    // }
+
+    // // 检查写入是否成功
+    // if (out.status()!= QTextStream::Ok)
+    // {
+    //     ui->textEdit->append(".....");
+    // }
+    // else
+    // {
+    //     ui->textEdit->append("写入成功");
+    // }
+
+    // // 关闭文件
+    // file.close();
+    // 创建QFile对象并打开文件
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+         ui->textEdit->append("无法打开文件");
+        return ;
+    }
+
+    // 创建QDataStream对象并关联到文件
+    QDataStream out(&file);
+    // 设置数据的字节序和版本
+    out.setByteOrder(QDataStream::LittleEndian);
+    out.setVersion(QDataStream::Qt_5_15);
+
+    // 写入数据到文件
+    for (int i = 0; i < fileSiz; ++i) {
+        out << pBuf[i];
+    }
+
+    // 检查写入是否成功
+    if (out.status() != QDataStream::Ok) {
+        ui->textEdit->append(".....");
+    }
+
+    // 关闭文件
+    file.close();
 
 };
 

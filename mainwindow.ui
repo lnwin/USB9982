@@ -431,7 +431,7 @@
       <string>长度</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="lineEdit_8">
+    <widget class="QLineEdit" name="m_lsicnt">
      <property name="geometry">
       <rect>
        <x>50</x>
