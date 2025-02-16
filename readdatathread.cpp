@@ -269,6 +269,8 @@ void readDataThread::readSingleData(const USB9982_PARA_INIT&MP,int singLength)
     //判断溢出位
     emit sendMSG2UI_Read("单次采集成功!");
 };
+
+int myCount=0;
 void readDataThread::readContinueData(const USB9982_PARA_INIT&MP)
 {
     para_init=MP;
@@ -315,17 +317,17 @@ void readDataThread::readContinueData(const USB9982_PARA_INIT&MP)
     Sleep(100);
 
 
-    //重新分配缓冲区
-    if(dataBuff)
-    {
-        for(int i=0;i<MAX_SEGMENT;i++)
-        {delete [] dataBuff[i];dataBuff[i] = NULL;}
-    }
+    // //重新分配缓冲区
+    // if(dataBuff)
+    // {
+    //     for(int i=0;i<MAX_SEGMENT;i++)
+    //     {delete [] dataBuff[i];dataBuff[i] = NULL;}
+    // }
 
-    //多缓冲
-    for( int i=0;i<MAX_SEGMENT;i++)
-        dataBuff[i] = new ULONG[samcnt];//每个缓冲区存放一个通道AD数据
-    //初始化多缓冲标志
+    // //多缓冲
+    // for( int i=0;i<MAX_SEGMENT;i++)
+    //     dataBuff[i] = new ULONG[samcnt];//每个缓冲区存放一个通道AD数据
+    // //初始化多缓冲标志
 
 
     PUCHAR inBuffer = NULL;
@@ -335,34 +337,46 @@ void readDataThread::readContinueData(const USB9982_PARA_INIT&MP)
     LONG  bBufOver = 0;
 
     memset(inBuffer,0,samcnt*sizeof(UCHAR));
-    emit sendMSG2UI_Read("开始连续采集！");
+    emit sendMSG2UI_Read("start reading!");
+    QDateTime currentTime=QDateTime::currentDateTime();
+    QString MT1=fileDir+"/_continueHC1_"+QString::number(myCount)+".bin";
+    QString MT2=fileDir+"/_continueHC2_"+QString::number(myCount)+".bin";
+    FILE *fp0;
+    FILE *fp1;
+    std::string fileName1=MT1.toStdString();
+    std::string fileName2=MT2.toStdString();
+    fp0=fopen(fileName1.c_str(),"wb");
+    fp1=fopen(fileName2.c_str(),"wb");
+    myCount+=1;
     while(bADRun)
     {
-        qDebug()<<"running!";
+
+
         //如果是软件触发，发出一个触发脉冲
         if (bSoftTrig)
         {
             USB9982_ExeSoftTrig(hDevice);
         }
 
-        if(bADRun==FALSE) goto exit_read;
+      //  if(bADRun==FALSE) goto exit_read;
 
         if(!readUSB(hDevice,inBuffer,samcnt))
         {
-            emit sendMSG2UI_Read("Error: ReadAD失败");
+            emit sendMSG2UI_Read("Error: ReadAD faile");
             goto exit_read;
         }
-        qDebug()<<"get here000!";
+
         //读取溢出
         if (!USB9982_GetBufOver(hDevice,&bBufOver)) {
-            emit sendMSG2UI_Read("Error");
+            emit sendMSG2UI_Read("Error: du qu yi chu");
             goto exit_read;
         }
-        qDebug()<<"get here111!";
+
         if((bBufOver&0x01)==1)
         {
-            emit sendMSG2UI_Read("缓存溢出");
+            emit sendMSG2UI_Read("huan cun yi chu");
         }
+
 
 
 
@@ -417,7 +431,8 @@ void readDataThread::readContinueData(const USB9982_PARA_INIT&MP)
                 {
                      myBuffer[i] = (ULONG)inBuffer[mm*i + display_ch];
                 }
-                saveMyContinueData(fileDir,myBuffer,tcnt,"continue_CH1");
+                //saveMyContinueData(fileDir,myBuffer,tcnt,"continue_CH1");
+                fwrite(myBuffer,sizeof(UCHAR), tcnt,fp0);
             }
             else
             {
@@ -440,8 +455,12 @@ void readDataThread::readContinueData(const USB9982_PARA_INIT&MP)
 
     }
 
+
     exit_read:
-    emit sendMSG2UI_Read("退出连续采集！");
+    delete[] inBuffer;
+    inBuffer = NULL;
+    fclose(fp0);
+    emit sendMSG2UI_Read("read exit!");
 
 
 };
@@ -503,32 +522,33 @@ void readDataThread::saveMyContinueData(QString filePath,PUCHAR pBuf, int fileSi
 {
     PUCHAR myBuf = pBuf;
     QDateTime currentTime=QDateTime::currentDateTime();
-    QString MT="/"+currentTime.toString("yyyy_hh_mm")+"_"+type+".bin";
-    filePath.append(MT);
-    QFile file(filePath);
-    if (!file.open(QIODevice::Append | QIODevice::WriteOnly)) {
-        // ui->textEdit->append("无法打开文件");
-        return ;
-    }
+   // QString MT="/"+currentTime.toString("yyyy_hh_mm")+"_"+type+".bin";
+    // QString MT="/"+type+".bin";
+    // filePath.append(MT);
+    // file1.setFileName(filePath);
+    // if (!file1.open(QIODevice::Append | QIODevice::WriteOnly)) {
+    //     // ui->textEdit->append("无法打开文件");
+    //     return ;
+    // }
 
-    // 创建QDataStream对象并关联到文件
-    QDataStream out(&file);
-    // 设置数据的字节序和版本
-    out.setByteOrder(QDataStream::LittleEndian);
-    out.setVersion(QDataStream::Qt_5_15);
+    // // 创建QDataStream对象并关联到文件
+    // out1.setDevice(&file1);
+    // // 设置数据的字节序和版本
+    // out1.setByteOrder(QDataStream::LittleEndian);
+    // out1.setVersion(QDataStream::Qt_5_15);
 
     // 写入数据到文件
     for (int i = 0; i < fileSiz; ++i) {
-        out << myBuf[i];
+        out1 << myBuf[i];
     }
 
     // 检查写入是否成功
-    if (out.status() != QDataStream::Ok) {
+    if (out1.status() != QDataStream::Ok) {
         // ui->textEdit->append(".....");
     }
 
     // 关闭文件
-    file.close();
+   // file.close();
 
 }
 void readDataThread::saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz,QString type)
@@ -536,16 +556,17 @@ void readDataThread::saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz,QStr
 
     PFLOAT myBuf = pBuf;
     QDateTime currentTime=QDateTime::currentDateTime();
-    QString MT="/"+currentTime.toString("yyyy_hh_mm_ss")+"_"+type+"_LJ.bin";
+    //QString MT="/"+currentTime.toString("yyyy_hh_mm_ss")+"_"+type+"_LJ.bin";
+    QString MT="/"+type+".bin";
     filePath.append(MT);
-    QFile file(filePath);
-    if (!file.open(QIODevice::Append | QIODevice::WriteOnly)) {
+    file2.setFileName(filePath);
+    if (!file2.open(QIODevice::Append | QIODevice::WriteOnly)) {
         // ui->textEdit->append("无法打开文件");
         return ;
     }
 
     // 创建QDataStream对象并关联到文件
-    QDataStream out(&file);
+    QDataStream out(&file2);
     // 设置数据的字节序和版本
     out.setByteOrder(QDataStream::LittleEndian);
     out.setVersion(QDataStream::Qt_5_15);
@@ -561,7 +582,7 @@ void readDataThread::saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz,QStr
     }
 
     // 关闭文件
-    file.close();
+   // file.close();
     // emit sendMSG2UI("save LJFile success");
 };
 

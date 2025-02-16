@@ -39,6 +39,12 @@ public:
     void saveMyLJData(QString filePath,PFLOAT pBuf, int fileSiz,QString type);
     void saveMyContinueData(QString filePath,PUCHAR pBuf, int fileSiz,QString type);
 
+
+    QFile file1;
+    QDataStream out1;
+    QFile file2;
+    QDataStream out2;
+
 signals:
     void sendMSG2UI_Read(QString);
 
